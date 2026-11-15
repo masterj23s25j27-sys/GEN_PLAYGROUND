@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Management Dashboard | Scholigence{% endblock %}
+
+{% block content %}
+<div class="glass-card large" style="max-width: 1000px; width: 100%;">
+    <div class="flex-between" style="border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+        <div>
+            <h3 style="margin-bottom: 0.5rem; text-align: left;">Management Dashboard</h3>
+            <div style="color: var(--text-muted); font-size: 0.9rem;">Real-time Employee Monitoring Overview</div>
+        </div>
+        
+        <div style="text-align: right;">
+            <span class="status-badge" style="background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid #8a2be2;">Admin Access</span>
+        </div>
+    </div>
+    <div class="flex-between" style="margin-bottom: 2rem;">
+        <form method="post" action="{% url 'reset_database' %}" onsubmit="return confirm('WARNING: This will permanently delete ALL developer users. Are you sure?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1rem; width: auto; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid red; white-space:nowrap;">🛑 Reset Database (Delete All Devs)</button>
+        </form>
+        <a href="{% url 'register' %}" class="btn btn-success" style="padding: 0.5rem 1rem; width: auto; background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid #10b981; text-decoration: none; display:inline-block; margin-left: 1rem;">+ Add New Employee</a>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <th style="padding: 1rem; color: var(--text-muted); font-weight: 500;">Employee ID</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-weight: 500;">Username</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-weight: 500;">Status</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-weight: 500;">Time Worked</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-weight: 500; text-align:center;">Quick Controls</th>
+                    <th style="padding: 1rem; color: var(--text-muted); font-weight: 500; text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dev in developers %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 1rem; font-weight: 600; color: var(--primary);">{{ dev.employee_id }}</td>
+                    <td style="padding: 1rem;">{{ dev.name }}</td>
+                    <td style="padding: 1rem;">
+                        {% if dev.status == 'Not Punched In Today' %}
+                            <span class="status-badge" style="background: rgba(255,255,255,0.1); color: var(--text-muted);"><small>{{ dev.status }}</small></span>
+                        {% elif dev.status == 'Out' %}
+                            <span class="status-badge status-out"><small>🚪 Out/Off</small></span>
+                        {% elif dev.status == 'Break' %}
+                            <span class="status-badge status-break"><small>☕ Break/Talk</small></span>
+                        {% elif dev.status == 'Working' %}
+                            <span class="status-badge status-working"><small>💻 Working</small></span>
+                        {% elif dev.status == 'In Meeting' %}
+                            <span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid #f59e0b;"><small>🤝 Meeting</small></span>
+                        {% else %}
+                            <span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid #10b981;"><small>{{ dev.status }}</small></span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem; font-family: monospace; font-size: 1.1rem; color: {% if dev.has_8_hours %}#10b981{% else %}var(--text-muted){% endif %};">
+                        {{ dev.working_time }}
+                    </td>
+                    <td style="padding: 1rem; text-align:center;">
+                        <div class="flex-center" style="gap: 0.5rem;">
+                            <a href="{% url 'manager_update_status' dev.employee_id 'WORKING' %}" class="btn-icon" title="Start Working" style="color: #10b981;">💻</a>
+                            <a href="{% url 'manager_update_status' dev.employee_id 'BREAK' %}" class="btn-icon" title="Set Break/Casual Talk" style="color: #f59e0b;">☕</a>
+                            <a href="{% url 'manager_update_status' dev.employee_id 'MEETING' %}" class="btn-icon" title="Set Meeting Mode" style="color: #60a5fa;">🤝</a>
+                            <a href="{% url 'manager_update_status' dev.employee_id 'OUT' %}" class="btn-icon" title="Set Out/Off" style="color: #ef4444;">🚪</a>
+                        </div>
+                    </td>
+                    <td style="padding: 1rem; text-align:right;">
+                        <form method="post" action="{% url 'delete_employee' dev.employee_id %}" style="display:inline;" onsubmit="return confirm('Are you sure you want to completely remove this employee?');">
+                            {% csrf_token %}
+                            <button type="submit" style="background:transparent; border:none; color:#fca5a5; cursor:pointer; text-decoration:underline; font-size:0.9rem; font-family:'Outfit'; padding:5px;">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No developers found in the system.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

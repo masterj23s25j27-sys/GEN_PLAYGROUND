@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Login | Scholigence{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <h2>Welcome Back!</h2>
+    <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted);">Please login to your account to mark your attendance.</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_username">Username</label>
+            <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username" class="form-control" placeholder="scholigence">
+        </div>
+        <div class="form-group">
+            <label for="id_password">Password</label>
+            <input type="password" name="password" autocomplete="current-password" required id="id_password" class="form-control" placeholder="••••••••">
+        </div>
+        <div class="form-group">
+            <label for="id_role">Select Role</label>
+            <select name="role" id="id_role" class="form-control" style="background:#1e293b; color:var(--text-main);">
+                <option value="developer">Developer Mode</option>
+                <option value="management">Management Mode</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Login</button>
+    </form>
+    
+    <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
+        Don't have an account? <a href="{% url 'register' %}" style="color: var(--primary); text-decoration: none; font-weight: 500;">Register here</a>
+    </div>
+</div>
+{% endblock %}

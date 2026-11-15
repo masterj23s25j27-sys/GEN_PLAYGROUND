@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | Scholigence{% endblock %}
+
+{% block content %}
+<div class="glass-card large">
+    <!-- Status Overview -->
+    <div class="flex-between" style="border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+        <div>
+            <h3 style="margin-bottom: 0.5rem; text-align: left;">Welcome, {{ user.first_name|default:user.username }}</h3>
+            <div style="color: var(--text-muted); font-size: 0.9rem;">Emp ID: {{ profile.employee_id }}</div>
+            {% if not network_allowed %}
+            <div style="color: var(--warning); font-size: 0.85rem; margin-top: 0.5rem;">
+                ⚠️ You are not connected to the office network (IP: {{ current_ip }}). Punch in disabled.
+            </div>
+            {% else %}
+            <div style="color: var(--secondary); font-size: 0.85rem; margin-top: 0.5rem;">
+                ✓ Connected to office network (IP: {{ current_ip }}).
+            </div>
+            {% endif %}
+        </div>
+        
+        <div style="text-align: right;">
+            {% if attendance.is_completed %}
+                <span class="status-badge" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color:white;">Day Completed</span>
+            {% elif attendance.current_status == 'OUT' %}
+                <span class="status-badge status-out">Punched Out</span>
+            {% elif attendance.current_status == 'WORKING' %}
+                <span class="status-badge status-working">Currently Working</span>
+            {% elif attendance.current_status == 'BREAK' %}
+                <span class="status-badge status-break">On Break</span>
+            {% endif %}
+            
+            <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);">
+                Date: {{ attendance.date }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Time Tracker -->
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="font-size: 1.1rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px;">Accumulated Time Today</div>
+        <div class="time-display" id="timeDisplay">
+            {{ attendance.formatted_working_time }}
+        </div>
+        {% if attendance.current_status == 'WORKING' %}
+            <div style="color: var(--secondary); font-size: 0.9rem; margin-top: -1rem; animation: pulse 2s infinite;">● Timer Active</div>
+        {% endif %}
+    </div>
+
+    <!-- Actions Form -->
+    <form method="post" action="{% url 'action_punch' %}" class="grid-2">
+        {% csrf_token %}
+        
+        {% if attendance.is_completed %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                <h3 style="color: var(--text-muted); margin-bottom: 0;">You have successfully completed your work day.</h3>
+            </div>
+        {% else %}
+            {% if attendance.current_status == 'OUT' %}
+                <!-- User needs to punch in -->
+                <button type="submit" name="action" value="PUNCH_IN" class="btn btn-success {% if not network_allowed %}btn-disabled{% endif %}" style="grid-column: 1 / -1; padding: 1.5rem; font-size: 1.2rem;" {% if not network_allowed %}disabled{% endif %}>
+                    ➔ PUNCH IN
+                </button>
+            {% else %}
+                <!-- Actions -->
+                <div style="grid-column: 1 / -1; display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center; margin-bottom: 1rem;">
+                    {% if attendance.current_status == 'WORKING' or attendance.current_status == 'NEED_HELP' or attendance.current_status == 'TRAINING' or attendance.current_status == 'RESEARCH' or attendance.current_status == 'LEARNING' or attendance.current_status == 'MEETING' %}
+                        <button type="submit" name="action" value="BREAK_START" class="btn btn-warning" style="flex:1; min-width: 150px; padding: 1rem;">☕ Pause (Break)</button>
+                    {% elif attendance.current_status == 'BREAK' %}
+                        <button type="submit" name="action" value="RESUME_WORK" class="btn btn-primary" style="flex:1; min-width: 150px; padding: 1rem;">▶ Resume Work</button>
+                    {% endif %}
+
+                    <!-- Granular Activity Buttons -->
+                    <button type="submit" name="action" value="NEED_HELP" class="btn btn-info" style="flex:1; min-width: 120px; padding: 0.8rem; background: #60a5fa; color: white;">🙋 Need Help</button>
+                    <button type="submit" name="action" value="TRAINING" class="btn btn-info" style="flex:1; min-width: 120px; padding: 0.8rem; background: #8b5cf6; color: white;">📚 Self Training</button>
+                    <button type="submit" name="action" value="RESEARCH" class="btn btn-info" style="flex:1; min-width: 120px; padding: 0.8rem; background: #06b6d4; color: white;">🔬 Research</button>
+                    <button type="submit" name="action" value="LEARNING" class="btn btn-info" style="flex:1; min-width: 120px; padding: 0.8rem; background: #ec4899; color: white;">📖 Learning</button>
+                    <button type="submit" name="action" value="MEETING" class="btn btn-info" style="flex:1; min-width: 120px; padding: 0.8rem; background: #f59e0b; color: white;">🤝 In Meeting</button>
+                    <button type="submit" name="action" value="RESUME_WORK" class="btn btn-info" style="flex:1; min-width: 120px; padding: 0.8rem; background: #10b981; color: white;">💻 Standard Work</button>
+                </div>
+                
+                <!-- 8 Hour Condition - The Checkout Button -->
+                {% if has_8_hours %}
+                    <button type="submit" name="action" value="PUNCH_OUT" class="btn btn-danger" style="grid-column: 1 / -1; padding: 1rem;">
+                        🛑 PUNCH OUT (End Day)
+                    </button>
+                {% else %}
+                    <!-- Disable Checkout -->
+                    <button type="button" class="btn btn-disabled" style="padding: 1rem;" title="You need to complete 8 hours first." disabled>
+                        🔒 Punch Out Locked (< 8h)
+                    </button>
+                {% endif %}
+                
+            {% endif %}
+        {% endif %}
+    </form>
+    
+    <!-- QR Code Section -->
+    <div class="qr-section">
+        <h4 style="color: var(--text-muted); margin-bottom: 1rem;">Your Access QR Code</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Scan this code to quickly access the punch portal.</p>
+        {% if profile.qr_code %}
+            <img class="qr-code" src="{{ profile.qr_code.url }}" alt="QR Code">
+        {% else %}
+            <div style="padding: 2rem; border: 1px dashed var(--border); border-radius: 10px; color: var(--text-muted);">
+                QR Code could not be found.
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<style>
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+</style>
+<script>
+    {% if attendance.current_status == 'WORKING' %}
+    // Client-side ticking timer for visual effect
+    let timeStr = document.getElementById('timeDisplay').innerText.trim();
+    let timeParts = timeStr.split(':');
+    let totalSeconds = parseInt(timeParts[0]) * 3600 + parseInt(timeParts[1]) * 60 + parseInt(timeParts[2]);
+
+    setInterval(() => {
+        totalSeconds++;
+        let h = Math.floor(totalSeconds / 3600);
+        let m = Math.floor((totalSeconds % 3600) / 60);
+        let s = totalSeconds % 60;
+        document.getElementById('timeDisplay').innerText = 
+            String(h).padStart(2, '0') + ':' + 
+            String(m).padStart(2, '0') + ':' + 
+            String(s).padStart(2, '0');
+    }, 1000);
+    {% endif %}
+</script>
+{% endblock %}
